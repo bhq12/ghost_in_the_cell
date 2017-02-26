@@ -173,7 +173,7 @@ def plan_first_turn():
 	print("starting_factory: " + str(starting_factory.id), file=sys.stderr)
 	for neighbour in starting_factory.neighbours:
 		print("neighbour: " + str(neighbour.id), file=sys.stderr)
-		move += "MOVE " + str(starting_factory.id) + " " + str(neighbour.id) + " 2;"
+		move += "MOVE " + str(starting_factory.id) + " " + str(neighbour.id) + " 1;"
 	print(move[:-1])
 	
 def plan_factory_turn(factory):
