@@ -1,6 +1,6 @@
 import sys
 import math
-import copy
+import random
 
 # Auto-generated code below aims at helping you parse
 # the standard input according to the problem statement.
@@ -33,6 +33,9 @@ class Factory:
 		self.turns_to_help = 0
 		self.important_count = 0
 		self.unimportant_count = 0
+		self.diff = 0
+		self.diff_count = 0
+		self.production = 0
 		
 	def add_neighbour(self, neighbour, cost):
 		self.neighbours[neighbour] = cost
@@ -40,20 +43,23 @@ class Factory:
 	def set_cyborg_count(self, count):
 		self.prev_cyborg_count = self.cyborg_count
 		self.cyborg_count = count
-		if self.cyborg_count - self.prev_cyborg_count == 3:
+		prev_diff = self.diff
+		diff = self.cyborg_count - self.prev_cyborg_count
+		if diff == prev_diff:
+			self.diff_count += 1
+		
+		if self.diff_count >= 3:
+			self.production = diff
+		
+		if diff >= 3:
 			self.important_count += 1
 		else:
 			self.important_count = 0
 		
-		if self.cyborg_count - self.prev_cyborg_count == 0:
-			self.unimportant_count += 1
-		else:
-			self.unimportant_count = 0
 		
+		#detect 3-generators early
 		if self.important_count >= 2:
 			important_factories.add(self)
-		if self.unimportant_count >= 4:
-			unimportant_factories.add(self)
 	
 	def __str__(self):
 		rep = "factory - ID: " + str(self.id) + " neighbours: ["
@@ -171,60 +177,73 @@ def plan_first_turn():
 	move = ""
 	
 	print("starting_factory: " + str(starting_factory.id), file=sys.stderr)
+	neighbour_count = len(starting_factory.neighbours)
 	for neighbour in starting_factory.neighbours:
 		print("neighbour: " + str(neighbour.id), file=sys.stderr)
-		move += "MOVE " + str(starting_factory.id) + " " + str(neighbour.id) + " 1;"
+		move += "MOVE " + str(starting_factory.id) + " " + str(neighbour.id) + " " + str(starting_factory.cyborg_count//neighbour_count) +";"
 	print(move[:-1])
 	
 def plan_factory_turn(factory):
+	global bomb_count
+	global bombed_factories
 	move = ""
+	move_priority = 0
 	important_move = ""
-	unimportant_move = ""
+	
 	for neighbour, cost in factory.neighbours.items():
 		if neighbour not in owned_factories:
 			
-			if factory.cyborg_count > neighbour.cyborg_count + 2 * cost and neighbour not in unimportant_factories:
+			if factory.cyborg_count > neighbour.cyborg_count + 2 * cost and neighbour.production != 0 and neighbour.production > move_priority:
 				move = "MOVE " + str(factory.id) + " " + str(neighbour.id) + " " + str(neighbour.cyborg_count + 2 * cost)
+				move_priority = neighbour.production
 			if factory.cyborg_count > neighbour.cyborg_count + 2 * cost and neighbour in important_factories:
 				important_move = "MOVE " + str(factory.id) + " " + str(neighbour.id) + " " + str(neighbour.cyborg_count + 2 * cost)
-			if factory.cyborg_count > neighbour.cyborg_count + 2 * cost and neighbour in unimportant_factories:
-				unimportant_move = "MOVE " + str(factory.id) + " " + str(neighbour.id) + " " + str(neighbour.cyborg_count + 1 + cost)
+			if neighbour in enemy_factories and neighbour.production >= 2 and bomb_count > 0 and neighbour not in bombed_factories:
+				important_move = "BOMB " + str(factory.id) + " " + str(neighbour.id)
+				bomb_count -= 1
+				bombed_factories.add(neighbour)
 			
 	for neighbour, cost in factory.neighbours.items():
 		if neighbour in owned_factories:
-			if neighbour.needs_help and self.turns_to_help < cost and factory.cyborg_count > 5:
-				move = "MOVE " + str(factory.id) + " " + str(neighbour.id) + " 5"
+			if neighbour.needs_help and factory.cyborg_count > 10:
+				important_move = "MOVE " + str(factory.id) + " " + str(neighbour.id) + " 5"
 		
 	
 	targeting_troops = [t for t in troops if t.destination == factory]
 	
-	for t in targeting_troops:
-		if t.cyborg_count > factory.cyborg_count - t.turns_before_arrival:
-			move = ""
-			factory.needs_help = True
-		elif t.cyborg_count > factory.cyborg_count and t.turns_before_arrival == 1:
-			for neighbour in factory.neighbours:
-				if neighbour in owned_factories:
-					move = "MOVE " + str(factory.id) + " " + str(neighbour.id) + " " + str(factory.cyborg_count)
-		else:
-			factory.needs_help = False
+	#for t in targeting_troops:
+	#	if t.cyborg_count > factory.cyborg_count - t.turns_before_arrival:
+	#		move = ""
+	#		factory.needs_help = True
+	#	elif t.cyborg_count > factory.cyborg_count and t.turns_before_arrival == 1:
+	#		for neighbour in factory.neighbours:
+	#			if neighbour in owned_factories:
+	#				move = "MOVE " + str(factory.id) + " " + str(neighbour.id) + " " + str(factory.cyborg_count)
+	#	else:
+	#		factory.needs_help = False
 	
 	if len(targeting_troops) == 0:
 		factory.needs_help = False
+	else:
+		factory.needs_help = True
 	
 	if important_move != "":
 		return important_move
-	elif move != "":
-		return move
 	else:
-		return unimportant_move
+		return move
 
+	bomb_cooldown -= 1
+	return move
 def plan_turn():
 	turn = ""
 	for factory in owned_factories:
 		move = plan_factory_turn(factory)
+		if factory.production < 3 and factory.cyborg_count >= 15:
+			move = "INC " + str(factory.id)
+
 		if move != "":
 			turn += move + ";"
+			
 	if turn != "":
 		print(turn[:-1])
 	else:
@@ -238,7 +257,8 @@ enemy_factories = set()
 first_turn = True
 troops = set()
 important_factories = set()
-unimportant_factories = set()
+bomb_count = 2
+bombed_factories = set()
 
 print("factories: " + str(factories), file=sys.stderr)
 
