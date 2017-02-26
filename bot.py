@@ -221,8 +221,8 @@ def plan_factory_turn(factory):
 	for neighbour, cost in factory.neighbours.items():
 		if neighbour in owned_factories:
 			if neighbour.needs_help and not factory.needs_help and factory.cyborg_count > 5 and neighbour.production >= 2:
-				important_move = "MOVE " + str(factory.id) + " " + str(neighbour.id) + " 5; MSG HELP_SENT" 
-				
+				#important_move = "MOVE " + str(factory.id) + " " + str(neighbour.id) + " 5; MSG HELP_SENT" 
+				do_this = False
 		
 	
 	
