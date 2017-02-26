@@ -183,12 +183,12 @@ def plan_factory_turn(factory):
 	for neighbour, cost in factory.neighbours.items():
 		if neighbour not in owned_factories:
 			
-			if factory.cyborg_count > neighbour.cyborg_count + 3 * cost + 1 and neighbour not in unimportant_factories:
-				move = "MOVE " + str(factory.id) + " " + str(neighbour.id) + " " + str(neighbour.cyborg_count + 3 * cost + 1)
+			if factory.cyborg_count > neighbour.cyborg_count + 2 * cost and neighbour not in unimportant_factories:
+				move = "MOVE " + str(factory.id) + " " + str(neighbour.id) + " " + str(neighbour.cyborg_count + 2 * cost)
 			if factory.cyborg_count > neighbour.cyborg_count + 2 * cost and neighbour in important_factories:
 				important_move = "MOVE " + str(factory.id) + " " + str(neighbour.id) + " " + str(neighbour.cyborg_count + 2 * cost)
-			if factory.cyborg_count > neighbour.cyborg_count + 1 and neighbour in unimportant_factories:
-				unimportant_move = "MOVE " + str(factory.id) + " " + str(neighbour.id) + " " + str(neighbour.cyborg_count + 1)
+			if factory.cyborg_count > neighbour.cyborg_count + 2 * cost and neighbour in unimportant_factories:
+				unimportant_move = "MOVE " + str(factory.id) + " " + str(neighbour.id) + " " + str(neighbour.cyborg_count + 2 * cost)
 			
 	for neighbour, cost in factory.neighbours.items():
 		if neighbour in owned_factories:
