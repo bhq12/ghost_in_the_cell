@@ -175,12 +175,14 @@ def plan_first_turn():
 	for fac in owned_factories:
 		starting_factory = fac
 	move = ""
-	
+	cyborgs = starting_factory.cyborg_count
 	print("starting_factory: " + str(starting_factory.id), file=sys.stderr)
 	neighbour_count = len(starting_factory.neighbours)
 	for neighbour in starting_factory.neighbours:
 		print("neighbour: " + str(neighbour.id), file=sys.stderr)
-		move += "MOVE " + str(starting_factory.id) + " " + str(neighbour.id) + " " + str(starting_factory.cyborg_count//neighbour_count) +";"
+		if cyborgs > neighbour.cyborg_count and neighbour.cyborg_count != 0:
+			move += "MOVE " + str(starting_factory.id) + " " + str(neighbour.id) + " " + str(neighbour.cyborg_count + 1) +";"
+			cyborgs -= (neighbour.cyborg_count + 1)
 	print(move[:-1])
 	
 def plan_factory_turn(factory):
@@ -190,42 +192,40 @@ def plan_factory_turn(factory):
 	move_priority = 0
 	important_move = ""
 	
+	targeting_troops = [t for t in troops if t.destination == factory.id and t.owner == ENEMY_FACTORY]
+	approaching_cyborgs = 0
+	for t in troops:
+		if t.destination == factory.id and t.owner == ENEMY_FACTORY:
+			approaching_cyborgs += t.cyborg_count
+	
+	if approaching_cyborgs >= factory.cyborg_count + 10:
+		factory.needs_help = True
+	else:
+		factory.needs_help = False
+	
 	for neighbour, cost in factory.neighbours.items():
 		if neighbour not in owned_factories:
 			
-			if factory.cyborg_count > neighbour.cyborg_count + 2 * cost and neighbour.production != 0 and neighbour.production > move_priority:
+			if factory.cyborg_count > neighbour.cyborg_count + 2 * cost and neighbour.production != 0 and neighbour.production > move_priority and not factory.needs_help:
 				move = "MOVE " + str(factory.id) + " " + str(neighbour.id) + " " + str(neighbour.cyborg_count + 2 * cost)
 				move_priority = neighbour.production
-			if factory.cyborg_count > neighbour.cyborg_count + 2 * cost and neighbour in important_factories:
-				important_move = "MOVE " + str(factory.id) + " " + str(neighbour.id) + " " + str(neighbour.cyborg_count + 2 * cost)
+			if factory.cyborg_count > neighbour.cyborg_count + 2 * cost and neighbour in important_factories and approaching_cyborgs < factory.cyborg_count:
+				important_move = "MOVE " + str(factory.id) + " " + str(neighbour.id) + " 1000" #+ str(neighbour.cyborg_count + 2 * cost)
 			if neighbour in enemy_factories and neighbour.production >= 2 and bomb_count > 0 and neighbour not in bombed_factories:
-				important_move = "BOMB " + str(factory.id) + " " + str(neighbour.id)
-				bomb_count -= 1
-				bombed_factories.add(neighbour)
+				destination_troops = [t for t in troops if t.destination == factory.id and t.owner == OWNED_FACTORY]
+				if len(destination_troops) > 0:
+					important_move = "BOMB " + str(factory.id) + " " + str(neighbour.id)
+					bomb_count -= 1
+					bombed_factories.add(neighbour)
 			
 	for neighbour, cost in factory.neighbours.items():
 		if neighbour in owned_factories:
-			if neighbour.needs_help and factory.cyborg_count > 10:
-				important_move = "MOVE " + str(factory.id) + " " + str(neighbour.id) + " 5"
+			if neighbour.needs_help and not factory.needs_help and factory.cyborg_count > 5 and neighbour.production >= 2:
+				important_move = "MOVE " + str(factory.id) + " " + str(neighbour.id) + " 5; MSG HELP_SENT" 
+				
 		
 	
-	targeting_troops = [t for t in troops if t.destination == factory]
 	
-	#for t in targeting_troops:
-	#	if t.cyborg_count > factory.cyborg_count - t.turns_before_arrival:
-	#		move = ""
-	#		factory.needs_help = True
-	#	elif t.cyborg_count > factory.cyborg_count and t.turns_before_arrival == 1:
-	#		for neighbour in factory.neighbours:
-	#			if neighbour in owned_factories:
-	#				move = "MOVE " + str(factory.id) + " " + str(neighbour.id) + " " + str(factory.cyborg_count)
-	#	else:
-	#		factory.needs_help = False
-	
-	if len(targeting_troops) == 0:
-		factory.needs_help = False
-	else:
-		factory.needs_help = True
 	
 	if important_move != "":
 		return important_move
@@ -238,7 +238,7 @@ def plan_turn():
 	turn = ""
 	for factory in owned_factories:
 		move = plan_factory_turn(factory)
-		if factory.production < 3 and factory.cyborg_count >= 15:
+		if factory.production < 3 and factory.cyborg_count >= 15 and not factory.needs_help:
 			move = "INC " + str(factory.id)
 
 		if move != "":
