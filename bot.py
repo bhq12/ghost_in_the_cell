@@ -139,6 +139,23 @@ def plan_first_turn():
 		move += "MOVE " + str(starting_factory.id) + " " + str(neighbour.id) + " 1;"
 	print(move[:-1])
 	
+def plan_factory_turn(factory):
+	move = ""
+	for neighbour, cost in factory.neighbours.items():
+		if neighbour not in owned_factories:
+			if factory.cyborg_count > neighbour.cyborg_count + 2 * cost:
+				move = "MOVE " + str(factory.id) + " " + str(neighbour.id) + " " + str(neighbour.cyborg_count + 2 * cost)
+	return move
+def plan_turn():
+	turn = ""
+	for factory in owned_factories:
+		move = plan_factory_turn(factory)
+		if move != "":
+			turn += move + ";"
+	if turn != "":
+		print(turn[:-1])
+	else:
+		print("WAIT")
 	
 factories = dict()
 initialise()
@@ -160,37 +177,4 @@ while True:
 		plan_first_turn()
 		first_turn = False
 	else:
-		
-		largest_owned = None
-		
-		for fac in owned_factories:
-			if largest_owned is None or fac.cyborg_count >= largest_owned.cyborg_count:
-				largest_owned = fac
-		
-		visited, next_steps = find_shortest_paths(largest_owned)
-		lowest_cost = None
-		attacking_fac = None
-		for fac, cost in visited.items():
-			if fac in next_steps.keys() and fac not in owned_factories and (lowest_cost == None or cost < lowest_cost):
-				attacking_fac = fac
-				lowest_cost = cost
-		
-		print("attacking_fac " + str(attacking_fac), file=sys.stderr)
-		print("next_steps " + str(next_steps), file=sys.stderr)
-		
-		next_step = next_steps[attacking_fac]
-		
-		print("MOVE " + str(largest_owned.id) + " " + str(attacking_fac.id) + " " + str(largest_owned.cyborg_count // 2))
-		#print("shortest visited, paths: " + str(visited) + "||||" + str(next_steps), file=sys.stderr)
-		#for f in factories.keys():
-		#	print(owned_factories, file=sys.stderr)
-		#	if f.owner == OWNED_FACTORY:
-		#		owned_factories.append(f)
-
-		print(owned_factories, file=sys.stderr)
-		# Write an action using print
-		# To debug: print >> sys.stderr, "Debug messages..."
-
-
-		# Any valid action, such as "WAIT" or "MOVE source destination cyborgs"
-		print("WAIT")
+		plan_turn()
