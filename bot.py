@@ -37,6 +37,15 @@ class Factory:
 		self.diff_count = 0
 		self.production = 0
 		
+	def add_troop(self, troop):
+		if troop.owner == NEUTRAL_FACTORY:
+			#deal with this case later 
+			self.usable_cyborgs = self.usable_cyborgs 
+		elif troop.owner != self.owner:
+			self.usable_cyborgs -= (troop.cyborg_count - self.production * troop.turns_before_arrival)
+		else:
+			self.usable_cyborgs += (troop.cyborg_count - self.production * troop.turns_before_arrival)
+	
 	def add_neighbour(self, neighbour, cost):
 		self.neighbours[neighbour] = cost
 		
@@ -139,11 +148,13 @@ def read_current_game_status():
 			fac = factories[entity_id]
 			fac.owner = arg_1
 			fac.cyborg_count = arg_2
+			fac.usable_cyborgs = arg_2
 			fac.production = arg_3
 		if entity_type == TROOP_TYPE:
-			troops.add(Troop(entity_id, arg_1, arg_2, arg_3, arg_4, arg_5))
-			#implement troops later
-			do_nothing = True
+			dest = arg_3
+			new_troop = Troop(entity_id, arg_1, arg_2, arg_3, arg_4, arg_5) 
+			troops.add(new_troop)
+			factories[dest].add_troop(new_troop)
 
 def seperate_factories():
 	global owned_factories
@@ -268,8 +279,10 @@ def plan_factory_turn(factory):
 	return move
 def plan_turn():
 	turn = ""
+	move = ""
 	for factory in owned_factories:
-		move = plan_factory_turn(factory)
+		#move = plan_factory_turn(factory)
+		move = improved_turn(factory)
 		if factory.production < 3 and factory.cyborg_count >= 20 and not factory.needs_help:
 			move = "INC " + str(factory.id)
 
@@ -281,6 +294,24 @@ def plan_turn():
 	else:
 		print("WAIT")
 	
+def improved_turn(factory):
+	costs, next_steps = find_shortest_paths(factory)
+	factory_move_priority = 0
+	move = ""
+	for fac in factories.values():
+		if fac.owner != OWNED_FACTORY:
+			next_step = next_steps[fac]
+			smallest_cost = costs[fac]
+			if fac.owner == NEUTRAL_FACTORY:
+				overtake_borgs = fac.usable_cyborgs + 2
+			else:
+				overtake_borgs = fac.usable_cyborgs + fac.production * (smallest_cost + 1) + 1
+			move_priority = 10 * fac.production - smallest_cost
+			
+			if move_priority > factory_move_priority and factory.usable_cyborgs > overtake_borgs and factory.id != next_step.id:
+				move = "MOVE " + str(factory.id) + " " + str(next_step.id) + " " + str(overtake_borgs if overtake_borgs > 0 else 0)
+	return move
+		
 
 factories = dict()
 initialise()
